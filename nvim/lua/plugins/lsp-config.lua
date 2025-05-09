@@ -2,11 +2,13 @@ return {
 	-- 1) core Mason + auto‑install LSPs
 	{
 		"williamboman/mason.nvim",
+		version = "1.11.0",
 		lazy = false,
 		config = function() require("mason").setup() end,
 	},
 	{
 		"williamboman/mason-lspconfig.nvim",
+		version = "1.32.0",
 		lazy = false,
 		opts = { auto_install = true },  -- or ensure_installed = {…} if you want explicit list
 	},
