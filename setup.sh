@@ -11,6 +11,9 @@ for file in ~/dotfiles/nvim/lua/*; do
     ln -sf "$file" ~/.config/nvim/lua/
 done
 
+# Symlink ftplugin (config do Java/jdtls)
+ln -sfn ~/dotfiles/nvim/ftplugin ~/.config/nvim/ftplugin
+
 # Symlink tmux config
 ln -sf ~/dotfiles/tmux/tmux.conf ~/.tmux.conf
 

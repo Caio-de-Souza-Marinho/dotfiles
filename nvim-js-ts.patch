@@ -1,0 +1,190 @@
+diff --git a/nvim/lua/plugins/autotag.lua b/nvim/lua/plugins/autotag.lua
+new file mode 100644
+index 0000000..ce315b6
+--- /dev/null
++++ b/nvim/lua/plugins/autotag.lua
+@@ -0,0 +1,6 @@
++-- Fecha/renomeia tags automaticamente em JSX/TSX e HTML
++return {
++	"windwp/nvim-ts-autotag",
++	event = { "BufReadPre", "BufNewFile" },
++	opts = {},
++}
+diff --git a/nvim/lua/plugins/git-stuff.lua b/nvim/lua/plugins/git-stuff.lua
+index 361e26b..2dfc162 100644
+--- a/nvim/lua/plugins/git-stuff.lua
++++ b/nvim/lua/plugins/git-stuff.lua
+@@ -7,7 +7,7 @@ return {
+ 		config = function()
+ 			require("gitsigns").setup()
+ 
+-			vim.keymap.set("n", "<leader>gp>", ":Gitsigns preview_hunk<CR>", {})
++			vim.keymap.set("n", "<leader>gp", ":Gitsigns preview_hunk<CR>", {})
+ 		end,
+ 	},
+ }
+diff --git a/nvim/lua/plugins/lsp-config.lua b/nvim/lua/plugins/lsp-config.lua
+index 2593796..b84022f 100644
+--- a/nvim/lua/plugins/lsp-config.lua
++++ b/nvim/lua/plugins/lsp-config.lua
+@@ -1,48 +1,93 @@
+ return {
+-	-- 1) core Mason + auto‑install LSPs
++	-- 1) Mason (instalador de LSPs/ferramentas)
+ 	{
+ 		"williamboman/mason.nvim",
+ 		version = "1.11.0",
+ 		lazy = false,
+ 		config = function() require("mason").setup() end,
+ 	},
++	-- 2) mason-lspconfig: instala os servidores listados
+ 	{
+ 		"williamboman/mason-lspconfig.nvim",
+-		version = "1.32.0",
++		version = "1.32.0", -- manter na 1.x: a 2.x removeu setup_handlers
+ 		lazy = false,
+-		opts = { auto_install = true },  -- or ensure_installed = {…} if you want explicit list
++		opts = {
++			ensure_installed = {
++				-- JS/TS (NestJS + React)
++				"ts_ls",
++				"eslint",
++				-- Front: Tailwind, CSS, HTML
++				"tailwindcss",
++				"cssls",
++				"html",
++				-- Prisma, JSON (package.json, tsconfig), Docker
++				"prismals",
++				"jsonls",
++				"dockerls",
++				"docker_compose_language_service",
++				-- o que você já usa
++				"lua_ls",
++				"clangd",
++			},
++		},
+ 	},
+-	-- 2) mason-tool-installer for Java DAP+Test
++	-- 3) Ferramentas que não são LSP (Java DAP/test)
+ 	{
+ 		"WhoIsSethDaniel/mason-tool-installer.nvim",
+ 		lazy = false,
++		dependencies = { "williamboman/mason.nvim" },
+ 		opts = {
+ 			ensure_installed = { "java-debug-adapter", "java-test" },
+ 		},
+-		config = function() vim.cmd("MasonToolsInstall") end,
+ 	},
+ 
+-	-- 3) nvim-lspconfig with dynamic handlers
++	-- 4) nvim-lspconfig
+ 	{
+ 		"neovim/nvim-lspconfig",
+ 		lazy = false,
+-		dependencies = { "mason-lspconfig.nvim" },
++		dependencies = { "williamboman/mason-lspconfig.nvim", "hrsh7th/cmp-nvim-lsp" },
+ 		config = function()
+ 			local lspconfig = require("lspconfig")
+-			local caps      = require("cmp_nvim_lsp").default_capabilities()
++			local caps = require("cmp_nvim_lsp").default_capabilities()
++
++			local function on_attach(_, bufnr)
++				local map = function(lhs, rhs) vim.keymap.set("n", lhs, rhs, { buffer = bufnr }) end
++				map("K", vim.lsp.buf.hover)
++				map("<leader>gd", vim.lsp.buf.definition)
++				map("<leader>gr", vim.lsp.buf.references)
++				map("<leader>gi", vim.lsp.buf.implementation)
++				map("<leader>rn", vim.lsp.buf.rename)
++				map("<leader>ca", vim.lsp.buf.code_action)
++				map("<leader>e", vim.diagnostic.open_float)
++			end
++
++			-- Formatação fica com o prettier (none-ls); o ts_ls não formata,
++			-- senão o <leader>gf pergunta qual cliente usar.
++			local function no_format_attach(client, bufnr)
++				client.server_capabilities.documentFormattingProvider = false
++				client.server_capabilities.documentRangeFormattingProvider = false
++				on_attach(client, bufnr)
++			end
+ 
+ 			require("mason-lspconfig").setup_handlers({
+-				function(server_name)      -- default handler for all servers
+-					lspconfig[server_name].setup {
++				function(server_name) -- padrão
++					lspconfig[server_name].setup({ capabilities = caps, on_attach = on_attach })
++				end,
++				["ts_ls"] = function()
++					lspconfig.ts_ls.setup({ capabilities = caps, on_attach = no_format_attach })
++				end,
++				["eslint"] = function()
++					lspconfig.eslint.setup({
+ 						capabilities = caps,
+-						on_attach    = function(_, bufnr)
+-							vim.keymap.set("n", "K", vim.lsp.buf.hover, { buffer = bufnr })
+-							vim.keymap.set("n", "<leader>gd", vim.lsp.buf.definition, { buffer = bufnr })
+-							vim.keymap.set("n", "<leader>gr", vim.lsp.buf.references, { buffer = bufnr })
+-							vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { buffer = bufnr })
++						on_attach = function(client, bufnr)
++							on_attach(client, bufnr)
++							-- <leader>ef: aplica todos os fixes do eslint
++							vim.keymap.set("n", "<leader>ef", "<cmd>EslintFixAll<CR>", { buffer = bufnr })
+ 						end,
+-					}
++					})
+ 				end,
++				-- Java é configurado pelo nvim-jdtls (ftplugin/java.lua); não subir 2x
++				["jdtls"] = function() end,
+ 			})
+ 		end,
+ 	},
+diff --git a/nvim/lua/plugins/treesitter.lua b/nvim/lua/plugins/treesitter.lua
+index 21e8839..ed28b93 100644
+--- a/nvim/lua/plugins/treesitter.lua
++++ b/nvim/lua/plugins/treesitter.lua
+@@ -4,6 +4,10 @@ return {
+ 	config = function()
+ 		local config = require("nvim-treesitter.configs")
+ 		config.setup({
++			ensure_installed = {
++				"javascript", "typescript", "tsx", "json", "jsonc", "html", "css",
++				"prisma", "dockerfile", "yaml", "lua", "c", "java", "markdown",
++			},
+ 			auto_install = true,
+ 			highlight = { enable = true },
+ 			indent = { enable = true },
+diff --git a/nvim/lua/vim-options.lua b/nvim/lua/vim-options.lua
+index ce2d219..d0b83f2 100644
+--- a/nvim/lua/vim-options.lua
++++ b/nvim/lua/vim-options.lua
+@@ -13,3 +13,17 @@ vim.api.nvim_create_autocmd("FileType", {
+ 		vim.opt.colorcolumn = "80"
+ 	end,
+ })
++
++-- Padrão quando não há .editorconfig: tabs para C (Norminette), 2 espaços para web
++vim.api.nvim_create_autocmd("FileType", {
++	pattern = {
++		"javascript", "javascriptreact", "typescript", "typescriptreact",
++		"json", "jsonc", "html", "css", "yaml", "prisma",
++	},
++	callback = function()
++		vim.opt_local.expandtab = true
++		vim.opt_local.shiftwidth = 2
++		vim.opt_local.tabstop = 2
++		vim.opt_local.softtabstop = 2
++	end,
++})
+diff --git a/setup.sh b/setup.sh
+index c3334e4..e0fd0fb 100755
+--- a/setup.sh
++++ b/setup.sh
+@@ -11,6 +11,9 @@ for file in ~/dotfiles/nvim/lua/*; do
+     ln -sf "$file" ~/.config/nvim/lua/
+ done
+ 
++# Symlink ftplugin (config do Java/jdtls)
++ln -sfn ~/dotfiles/nvim/ftplugin ~/.config/nvim/ftplugin
++
+ # Symlink tmux config
+ ln -sf ~/dotfiles/tmux/tmux.conf ~/.tmux.conf
+ 

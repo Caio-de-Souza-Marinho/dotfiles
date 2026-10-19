@@ -13,3 +13,17 @@ vim.api.nvim_create_autocmd("FileType", {
 		vim.opt.colorcolumn = "80"
 	end,
 })
+
+-- Padrão quando não há .editorconfig: tabs para C (Norminette), 2 espaços para web
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = {
+		"javascript", "javascriptreact", "typescript", "typescriptreact",
+		"json", "html", "css", "yaml", "prisma",
+	},
+	callback = function()
+		vim.opt_local.expandtab = true
+		vim.opt_local.shiftwidth = 2
+		vim.opt_local.tabstop = 2
+		vim.opt_local.softtabstop = 2
+	end,
+})
