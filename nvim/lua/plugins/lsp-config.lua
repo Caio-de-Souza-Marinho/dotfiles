@@ -44,6 +44,7 @@ return {
 	-- 4) nvim-lspconfig
 	{
 		"neovim/nvim-lspconfig",
+		commit = "4bc481b6f0c0cf3671fc894debd0e00347089a4e",
 		lazy = false,
 		dependencies = { "williamboman/mason-lspconfig.nvim", "hrsh7th/cmp-nvim-lsp" },
 		config = function()
